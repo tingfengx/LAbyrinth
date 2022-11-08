@@ -26,7 +26,7 @@ class Base_Scene extends Scene {
                 { ambient: .4, diffusivity: .6, color: hex_color("#ffffff") }),
             cobble_stone: new Material(new Fake_Bump_Map(),
                 {
-                    ambient: 0.4, diffusivity: 0.3, specularity: 0.3,
+                    ambient: 0.5, diffusivity: 0.3, specularity: 0.3,
                     texture: new Texture("./assets/cobble_stone/Cobblestone_001_COLOR.jpg")
                 })
         };
@@ -51,7 +51,7 @@ class Base_Scene extends Scene {
     }
 }
 
-export class Assignment2 extends Base_Scene {
+export class Labyrinth extends Base_Scene {
     /**
      * This Scene object can be added to any display canvas.
      * We isolate that code so it can be experimented with on its own.
@@ -317,7 +317,7 @@ export class Assignment2 extends Base_Scene {
     set_colors() {
         // TODO:  Create a class member variable to store your cube's colors.
         // Hint:  You might need to create a member variable at somewhere to store the colors, using `this`.
-        // Hint2: You can consider add a constructor for class Assignment2, or add member variables in Base_Scene's constructor.
+        // Hint2: You can consider add a constructor for class Labyrinth, or add member variables in Base_Scene's constructor.
         this.color_arr = [];
         let i = 0;
         for (i = 0; i < 8; i++) {
