@@ -4,7 +4,7 @@ const {
     Vector, Vector3, vec, vec3, vec4, color, hex_color, Shader, Matrix, Mat4, Light, Shape, Material, Scene, Texture,
 } = tiny;
 
-const {Cube, Axis_Arrows, Textured_Phong, Fake_Bump_Map, Textured_Phong_Normal_Map} = defs;
+const {Cube, Square, Axis_Arrows, Textured_Phong, Fake_Bump_Map, Textured_Phong_Normal_Map, Phong_Shader} = defs;
 
 class Base_Scene extends Scene {
     /**
@@ -18,6 +18,7 @@ class Base_Scene extends Scene {
         // At the beginning of our program, load one of each of these shape definitions onto the GPU.
         this.shapes = {
             'cube': new Cube(),
+            'floor': new Square(),
         };
 
         // *** Materials
@@ -28,7 +29,12 @@ class Base_Scene extends Scene {
                 {
                     ambient: 0.5, diffusivity: 0.3, specularity: 0.3,
                     texture: new Texture("./assets/cobble_stone/Cobblestone_001_COLOR.jpg")
-                })
+                }),
+            perlin_floor: new Material(new Textured_Phong(),
+                {
+                    ambient: 1., diffusivity: 0.3, specularity: 0.3,
+                    texture: new Texture("./assets/perlin_stones/1.png")
+                }),
         };
     }
 
@@ -46,7 +52,7 @@ class Base_Scene extends Scene {
             Math.PI / 4, context.width / context.height, 1, 100);
 
         // *** Lights: *** Values of vector or point lights.
-        const light_position = vec4(20,10, 50, 1);
+        const light_position = vec4(20, 10, 50, 1);
         program_state.lights = [new Light(light_position, color(1, 1, 1, 1), 10**5)];
     }
 }
@@ -311,43 +317,27 @@ export class Labyrinth extends Base_Scene {
             [0, 0, 20],
             [20, 0, 20],
         ]
-
-    }
-
-    set_colors() {
-        // TODO:  Create a class member variable to store your cube's colors.
-        // Hint:  You might need to create a member variable at somewhere to store the colors, using `this`.
-        // Hint2: You can consider add a constructor for class Labyrinth, or add member variables in Base_Scene's constructor.
-        this.color_arr = [];
-        let i = 0;
-        for (i = 0; i < 8; i++) {
-            this.color_arr.push(color(Math.random(), Math.random(), Math.random(), 1.0))
-        }
     }
 
     make_control_panel() {
-        // Draw the scene's buttons, setup their actions and keyboard shortcuts, and monitor live measurements.
-        this.key_triggered_button("Change Colors", ["c"], this.set_colors);
-        // Add a button for controlling the scene.
-        this.key_triggered_button("Outline", ["o"], () => {
-            // TODO:  Requirement 5b:  Set a flag here that will toggle your outline on and off
-        });
-        this.key_triggered_button("Sit still", ["m"], () => {
-            // TODO:  Requirement 3d:  Set a flag here that will toggle your swaying motion on and off.
-        });
+
     }
 
     draw_box(context, program_state, model_transform, x, y, z) {
-        // TODO:  Helper function for requirement 3 (see hint).
-        //        This should make changes to the model_transform matrix, draw the next box, and return the newest model_transform.
-        // Hint:  You can add more parameters for this function, like the desired color, index of the box, etc.
         model_transform = Mat4.identity().times(Mat4.translation(x, y, z));
         return model_transform;
     }
 
+    draw_floor(context, program_state) {
+        const floor_transformation = Mat4.identity()
+            .times(Mat4.translation(20, -1.01, -20))
+            .times(Mat4.rotation(Math.PI / 2., 1, 0, 0))
+            .times(Mat4.scale(20, 20, 0));
+        this.shapes.floor.draw(context, program_state, floor_transformation, this.materials.perlin_floor);
+    }
+
     display(context, program_state) {
         super.display(context, program_state);
-        const blue = hex_color("#1a9ffa");
         let model_transform = Mat4.identity();
         let original_box_size = 2;
         for (let i = 0; i < this.box_coord.length; i++) {
@@ -357,5 +347,7 @@ export class Labyrinth extends Base_Scene {
                 -original_box_size * this.box_coord[i][2])
             this.shapes.cube.draw(context, program_state, model_transform, this.materials.cobble_stone);
         }
+
+        this.draw_floor(context, program_state);
     }
 }
