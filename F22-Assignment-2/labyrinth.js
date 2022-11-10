@@ -1,10 +1,20 @@
-import { defs, tiny } from './examples/common.js';
+import {defs, tiny} from './examples/common.js';
 
 const {
     Vector, Vector3, vec, vec3, vec4, color, hex_color, Shader, Matrix, Mat4, Light, Shape, Material, Scene, Texture,
 } = tiny;
 
-const {Cube, Square, Axis_Arrows, Textured_Phong, Fake_Bump_Map, Textured_Phong_Normal_Map, Phong_Shader} = defs;
+const {
+    Cube,
+    Cube_Normal,
+    Square_Normal,
+    Square,
+    Axis_Arrows,
+    Textured_Phong,
+    Fake_Bump_Map,
+    Phong_Shader,
+    Textured_Phong_Normal_Map
+} = defs;
 
 class Base_Scene extends Scene {
     /**
@@ -17,23 +27,35 @@ class Base_Scene extends Scene {
         this.hover = this.swarm = false;
         // At the beginning of our program, load one of each of these shape definitions onto the GPU.
         this.shapes = {
-            'cube': new Cube(),
+            'cube': new Cube_Normal(),
             'floor': new Square(),
+            'torch_wood': new Cube(),
+            'torch_fire': new defs.Subdivision_Sphere(3),
         };
 
         // *** Materials
         this.materials = {
             plastic: new Material(new defs.Phong_Shader(),
-                { ambient: .4, diffusivity: .6, color: hex_color("#ffffff") }),
-            cobble_stone: new Material(new Fake_Bump_Map(),
+                {ambient: .4, diffusivity: .6, color: hex_color("#ffffff")}),
+            cobble_stone: new Material(new Textured_Phong_Normal_Map(),
                 {
-                    ambient: 0.5, diffusivity: 0.3, specularity: 0.3,
-                    texture: new Texture("./assets/cobble_stone/Cobblestone_001_COLOR.jpg")
+                    ambient: 0.2, diffusivity: 0.3, specularity: 0.3, color: hex_color("#964B00"),
+                    texture: new Texture("./assets/brickwall.jpg"),
+                    normal: new Texture("./assets/brickwall_normal.jpg")
                 }),
             perlin_floor: new Material(new Textured_Phong(),
                 {
-                    ambient: 1., diffusivity: 0.3, specularity: 0.3,
-                    texture: new Texture("./assets/perlin_stones/1.png")
+                    ambient: .5, diffusivity: 0.3, specularity: 0.3,
+                    texture: new Texture("./assets/perlin_stones/ground.png")
+                }),
+            wood: new Material(new Textured_Phong(),
+                {
+                    ambient: 0.5, diffusivity: 1.0, specularity: 0.3,
+                    texture: new Texture("./assets/wood.png")
+                }),
+            fire: new Material(new Phong_Shader(),
+                {
+                    ambient: 1., diffusivity: .6, color: hex_color("#ffffff")
                 }),
         };
     }
@@ -52,8 +74,8 @@ class Base_Scene extends Scene {
             Math.PI / 4, context.width / context.height, 1, 100);
 
         // *** Lights: *** Values of vector or point lights.
-        const light_position = vec4(20, 10, 50, 1);
-        program_state.lights = [new Light(light_position, color(1, 1, 1, 1), 10**5)];
+        const global_sun_position = vec4(20, 10, 50, 1);
+        program_state.lights = [new Light(global_sun_position, hex_color("#ffffff"), 10 ** 10)];
     }
 }
 
@@ -68,6 +90,7 @@ export class Labyrinth extends Base_Scene {
         super();
         this.get_coords();
     }
+
     get_coords() {
         this.box_coord = [
             [0, 0, 0],
@@ -330,10 +353,32 @@ export class Labyrinth extends Base_Scene {
 
     draw_floor(context, program_state) {
         const floor_transformation = Mat4.identity()
-            .times(Mat4.translation(20, -1.01, -20))
+            .times(Mat4.translation(20, -1, -20))
             .times(Mat4.rotation(Math.PI / 2., 1, 0, 0))
             .times(Mat4.scale(20, 20, 0));
         this.shapes.floor.draw(context, program_state, floor_transformation, this.materials.perlin_floor);
+    }
+
+    draw_torch(context, program_state, x, y, z) {
+        if (x === 0 || x >= 40 || z === 0 || z >= 40) {
+            return;
+        }
+        // consider x, y, z to be the bottom position
+        let torch_transformation = Mat4.identity()
+            .times(Mat4.translation(x, y, z))
+            .times(Mat4.scale(0.08, 0.3, .08));
+        this.shapes.torch_wood.draw(
+            context, program_state,
+            torch_transformation,
+            this.materials.wood);
+        this.shapes.torch_fire.draw(
+            context, program_state,
+            Mat4.identity()
+                .times(Mat4.translation(x, y + 0.4, z))
+                .times(Mat4.scale(0.1, 0.1, 0.1)),
+            this.materials.fire
+        );
+        program_state.lights.push(new Light(vec4(x, y + 0.4, z, 1), color(0.9, 0.9, 0.5, 1), 10));
     }
 
     display(context, program_state) {
@@ -341,10 +386,11 @@ export class Labyrinth extends Base_Scene {
         let model_transform = Mat4.identity();
         let original_box_size = 2;
         for (let i = 0; i < this.box_coord.length; i++) {
-            model_transform = this.draw_box(context, program_state, model_transform,
-                original_box_size * this.box_coord[i][0],
-                original_box_size * this.box_coord[i][1],
-                -original_box_size * this.box_coord[i][2])
+            const x = original_box_size * this.box_coord[i][0];
+            const y = original_box_size * this.box_coord[i][1];
+            const z = -original_box_size * this.box_coord[i][2];
+            model_transform = this.draw_box(context, program_state, model_transform, x, y, z);
+            if (i % 3 === 0) this.draw_torch(context, program_state, x + 1.0, y + 0.3, z);
             this.shapes.cube.draw(context, program_state, model_transform, this.materials.cobble_stone);
         }
 
