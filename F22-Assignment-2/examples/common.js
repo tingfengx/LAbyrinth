@@ -56,6 +56,65 @@ const Square = defs.Square =
     }
 
 
+const Square_Normal = defs.Square_Normal =
+    class Square_Normal extends Shape {
+        constructor() {
+            // values defined per-vertex
+            // TODO: I can't reuse the Square somehow?
+            super("position", "normal", "texture_coord", "tangents");
+            // Specify the 4 square corner locations, and match those up with normal vectors:
+            this.arrays.position = Vector3.cast([-1, -1, 0], [1, -1, 0], [-1, 1, 0], [1, 1, 0]);
+            this.arrays.normal = Vector3.cast([0, 0, 1], [0, 0, 1], [0, 0, 1], [0, 0, 1]);
+            // Arrange the vertices into a square shape in texture space too:
+            this.arrays.texture_coord = Vector.cast([0, 0], [1, 0], [0, 1], [1, 1]);
+            // Use two triangles this time, indexing into four distinct vertices:
+            this.indices.push(0, 1, 2, 3, 1, 2);
+            // Tangents calculation is incremental, start with nil tangents
+            this.arrays.tangents = Vector3.cast([0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0]);
+
+            for (let i = 0; i < this.indices.length - 2; i += 3) {
+                const a = this.indices[i];
+                const b = this.indices[i + 1];
+                const c = this.indices[i + 2];
+
+                // respective positions
+                const apos = this.arrays.position[a];
+                const bpos = this.arrays.position[b];
+                const cpos = this.arrays.position[c];
+
+                // two edges, a -> b and a -> c; b <- a -> c triangle
+                // .minus b/c no overriding for "-"
+                const e1 = bpos.minus(apos);
+                const e2 = cpos.minus(apos);
+
+                // for e1, a -> b
+                const uv1 = this.arrays.texture_coord[b].minus(this.arrays.texture_coord[a]);
+                // for e2, a -> c
+                const uv2 = this.arrays.texture_coord[c].minus(this.arrays.texture_coord[a]);
+                // det[uv1, uv2]
+                const det = (uv1[0] * uv2[1] - uv1[1] * uv2[0]);
+
+                e1.scale_by(uv2[1]);
+                e2.scale_by(uv1[1]);
+
+                const vec3tangent = e1.minus(e2);
+                vec3tangent.scale_by(1. / det);
+
+                const abc = [a, b, c];
+                for (let j = 0; j < abc.length; j++) {
+                    this.arrays.tangents[abc[j]] = this.arrays.tangents[abc[j]].plus(vec3tangent);
+                }
+            }
+
+            // in place normalization
+            for (let i = 0; i < this.arrays.tangents.length; i++) {
+                this.arrays.tangents[i].normalize();
+            }
+
+        }
+    }
+
+
 const Tetrahedron = defs.Tetrahedron =
     class Tetrahedron extends Shape {
         // **Tetrahedron** demonstrates flat vs smooth shading (a boolean argument selects
@@ -155,6 +214,21 @@ const Cube = defs.Cube =
         }
     }
 
+const Cube_Normal = defs.Cube_Normal =
+    class Cube_Normal extends Shape {
+        // exactly the same, except for additional tangents registration in super
+        constructor() {
+            super("position", "normal", "texture_coord", "tangents");
+            for (let i = 0; i < 3; i++)
+                for (let j = 0; j < 2; j++) {
+                    const square_transform = Mat4.rotation(i == 0 ? Math.PI / 2 : 0, 1, 0, 0)
+                        .times(Mat4.rotation(Math.PI * j - (i == 1 ? Math.PI / 2 : 0), 0, 1, 0))
+                        .times(Mat4.translation(0, 0, 1));
+                    // and using square with normal
+                    Square_Normal.insert_transformed_copy_into(this, [], square_transform);
+                }
+        }
+    }
 
 const Subdivision_Sphere = defs.Subdivision_Sphere =
     class Subdivision_Sphere extends Shape {
@@ -800,6 +874,84 @@ const Fake_Bump_Map = defs.Fake_Bump_Map =
                     // Compute the final color with contributions from lights:
                     gl_FragColor.xyz += phong_model_lights( normalize( bumped_N ), vertex_worldspace );
                   } `;
+        }
+    }
+
+const Textured_Phong_Normal_Map = defs.Textured_Phong_Normal_Map =
+    class Phong_Shading_With_Texture_and_Normal extends Textured_Phong {
+        vertex_glsl_code() {
+            // ********* VERTEX SHADER *********
+            return this.shared_glsl_code() + `
+                varying vec2 f_tex_coord;
+                attribute vec3 position, normal, tangents;                            
+                // Position is expressed in object coordinates.
+                attribute vec2 texture_coord;
+                
+                uniform mat4 model_transform;
+                uniform mat4 projection_camera_model_transform;
+                
+                varying mat3 TBN; // persist to fragment
+        
+                void main(){    
+                    // The final normal vector in screen space.
+                    N = normalize( mat3( model_transform ) * normal / squared_scale);
+
+                    // compute TBN at vertex ////
+                    vec3 aTangent = normalize( ( model_transform * vec4( tangents, 0.0 ) ).xyz );
+                    vec3 T = normalize( aTangent - dot( aTangent, N ) * N );
+                    vec3 B = normalize( cross ( N, T ) ); 
+                    TBN = mat3( T, B, N );
+                    /////////////////////////////
+                            
+                    // The vertex's final resting place (in NDCS):
+                    gl_Position = projection_camera_model_transform * vec4( position, 1.0 );
+                    
+                    vertex_worldspace = ( model_transform * vec4( position, 1.0 ) ).xyz;
+                    // Turn the per-vertex texture coordinate into an interpolated variable.
+                    f_tex_coord = texture_coord;
+                  } `;
+        }
+
+        fragment_glsl_code() {
+            // ********* FRAGMENT SHADER *********
+            return this.shared_glsl_code() + `
+                varying vec2 f_tex_coord;
+                uniform sampler2D texture;
+                uniform sampler2D normal;
+                varying mat3 TBN;
+                
+                void main(){
+                    // Sample the texture image in the correct place:
+                    vec4 tex_color = texture2D( texture, f_tex_coord );
+                    
+                    // Sample the normal (treated as texture) in the correct place: 
+                    vec3 normal_tex = texture2D( normal, f_tex_coord ).xyz;
+                    normal_tex = normalize( normal_tex * 2.0 - 1.0 ); 
+                    normal_tex = normalize( TBN * normal_tex ); 
+                    
+                    // Compute an initial (ambient) color:
+                    gl_FragColor = vec4( ( tex_color.xyz + shape_color.xyz ) * ambient, shape_color.w * tex_color.w ); 
+                    // Compute the final color with contributions from lights:
+                    gl_FragColor.xyz += phong_model_lights( normal_tex, vertex_worldspace );
+                  } `;
+        }
+
+        update_GPU(context, gpu_addresses, gpu_state, model_transform, material) {
+            super.update_GPU(context, gpu_addresses, gpu_state, model_transform, material);
+
+            if (material.texture && material.texture.ready) {
+                // Select texture unit 0 for the fragment shader Sampler2D uniform called "texture":
+                context.uniform1i(gpu_addresses.texture, 1);
+                // For this draw, use the texture image from correct the GPU buffer:
+                material.texture.activate(context);
+            }
+
+            if (material.normal && material.normal.ready) {
+                // Select texture unit 1 for the fragment shader Sampler2D uniform called "normal":
+                context.uniform1i(gpu_addresses.normal, 0);
+                // For this draw, use the normal image from correct the GPU buffer:
+                material.normal.activate(context);
+            }
         }
     }
 
