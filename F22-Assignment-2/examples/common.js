@@ -68,14 +68,15 @@ const Square_Normal = defs.Square_Normal =
             // Arrange the vertices into a square shape in texture space too:
             this.arrays.texture_coord = Vector.cast([0, 0], [1, 0], [0, 1], [1, 1]);
             // Use two triangles this time, indexing into four distinct vertices:
-            this.indices.push(0, 1, 2, 3, 1, 2);
+            this.indices.push(0, 1, 2, 1, 3, 2);
             // Tangents calculation is incremental, start with nil tangents
             this.arrays.tangents = Vector3.cast([0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0]);
 
-            for (let i = 0; i < this.indices.length - 2; i += 3) {
-                const a = this.indices[i];
-                const b = this.indices[i + 1];
-                const c = this.indices[i + 2];
+            const triangles = [[0, 1, 2], [1, 3, 2]]
+            for (let i = 0; i < triangles.length; i++) {
+                const a = triangles[i][0];
+                const b = triangles[i][1];
+                const c = triangles[i][2];
 
                 // respective positions
                 const apos = this.arrays.position[a];
