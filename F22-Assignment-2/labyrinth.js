@@ -31,6 +31,7 @@ class Base_Scene extends Scene {
             'floor': new Square(),
             'torch_wood': new Cube(),
             'torch_fire': new defs.Subdivision_Sphere(3),
+            'person': new Cube(),
         };
 
         // *** Materials
@@ -57,7 +58,25 @@ class Base_Scene extends Scene {
                 {
                     ambient: 1., diffusivity: .6, color: hex_color("#ffffff")
                 }),
+            person: new Material(new Phong_Shader,
+                {
+                    ambient: 1, diffusivity: 0.5, color: hex_color("#992828")
+                }),
         };
+
+        // vector direction in homo
+        // x and z movement only
+        this.look_at_direction = vec4(1, 0, 0, 0);
+        // initial person and camera transformations
+        this.person_location = vec4(2, 0, -2, 0);
+        this.person_transformation = Mat4.identity()
+            .times(Mat4.translation(2, -0.5, -2))
+            .times(Mat4.rotation(Math.PI / 2, 0, 1, 0))
+            .times(Mat4.scale(0.3, 0.3, 0.3));
+        this.camera_transformation = Mat4.identity()
+            // since camera space is all in inverse space. We have to translate first, then rotate.
+            .times(Mat4.rotation(Math.PI / 2, 0, 1, 0))
+            .times(Mat4.translation(-2, -0.8, 2));
     }
 
     display(context, program_state) {
@@ -71,7 +90,7 @@ class Base_Scene extends Scene {
             program_state.set_camera(Mat4.translation(-20, -10, -50));
         }
         program_state.projection_transform = Mat4.perspective(
-            Math.PI / 4, context.width / context.height, 1, 100);
+            Math.PI / 2.5, context.width / context.height, 0.01, 100);
 
         // *** Lights: *** Values of vector or point lights.
         const global_sun_position = vec4(20, 10, 50, 1);
@@ -343,7 +362,94 @@ export class Labyrinth extends Base_Scene {
     }
 
     make_control_panel() {
-
+        this.key_triggered_button("Rotate Left", ["a"], () => {
+            this.look_at_direction = Mat4.rotation(Math.PI / 16, 0, 1, 0)
+                .times(this.look_at_direction);
+            this.person_transformation =
+                Mat4.translation(
+                    this.person_location[0],
+                    this.person_location[1],
+                    this.person_location[2]
+                )
+                    .times(Mat4.rotation(Math.PI / 16, 0, 1, 0))
+                    .times(Mat4.translation(
+                        -1 * this.person_location[0],
+                        -1 * this.person_location[1],
+                        -1 * this.person_location[2]
+                    )).times(this.person_transformation);
+            this.camera_transformation =
+                this.camera_transformation.times(
+                    Mat4.translation(
+                        this.person_location[0],
+                        this.person_location[1],
+                        this.person_location[2]
+                    )
+                        .times(Mat4.rotation(-Math.PI / 16, 0, 1, 0))
+                        .times(Mat4.translation(
+                            -1 * this.person_location[0],
+                            -1 * this.person_location[1],
+                            -1 * this.person_location[2]
+                        )));
+        });
+        this.key_triggered_button("Rotate Right", ["d"], () => {
+            this.look_at_direction = Mat4.rotation(-Math.PI / 16, 0, 1, 0)
+                .times(this.look_at_direction);
+            this.person_transformation =
+                Mat4.translation(
+                    this.person_location[0],
+                    this.person_location[1],
+                    this.person_location[2]
+                )
+                    .times(Mat4.rotation(-Math.PI / 16, 0, 1, 0))
+                    .times(Mat4.translation(
+                        -1 * this.person_location[0],
+                        -1 * this.person_location[1],
+                        -1 * this.person_location[2]
+                    )).times(this.person_transformation);
+            this.camera_transformation =
+                this.camera_transformation.times(
+                    Mat4.translation(
+                        this.person_location[0],
+                        this.person_location[1],
+                        this.person_location[2]
+                    )
+                        .times(Mat4.rotation(Math.PI / 16, 0, 1, 0))
+                        .times(Mat4.translation(
+                            -1 * this.person_location[0],
+                            -1 * this.person_location[1],
+                            -1 * this.person_location[2]
+                        )));
+        });
+        this.key_triggered_button("Move", ["w"], () => {
+            const scaled_look_at_direction = this.look_at_direction.times(0.12)
+            this.person_transformation =
+                Mat4.translation(
+                    scaled_look_at_direction[0],
+                    scaled_look_at_direction[1],
+                    scaled_look_at_direction[2]
+                ).times(this.person_transformation);
+            this.camera_transformation = this.camera_transformation.times(Mat4.translation(
+                -1 * scaled_look_at_direction[0],
+                -1 * scaled_look_at_direction[1],
+                -1 * scaled_look_at_direction[2]
+            ));
+            this.person_location = this.person_location.plus(scaled_look_at_direction);
+        });
+        this.key_triggered_button("Back", ["s"], () => {
+            const scaled_look_at_direction = this.look_at_direction.times(0.12)
+            this.person_transformation =
+                Mat4.translation(
+                    -1 * scaled_look_at_direction[0],
+                    -1 * scaled_look_at_direction[1],
+                    -1 * scaled_look_at_direction[2]
+                ).times(this.person_transformation);
+            this.camera_transformation = this.camera_transformation.times(Mat4.translation(
+                scaled_look_at_direction[0],
+                scaled_look_at_direction[1],
+                scaled_look_at_direction[2]
+            ));
+            this.person_location = this.person_location.plus(scaled_look_at_direction);
+        });
     }
 
     draw_box(context, program_state, model_transform, x, y, z) {
@@ -381,6 +487,11 @@ export class Labyrinth extends Base_Scene {
         program_state.lights.push(new Light(vec4(x, y + 0.4, z, 1), color(0.9, 0.9, 0.5, 1), 10));
     }
 
+    draw_person(context, program_state) {
+        program_state.set_camera(this.camera_transformation)
+        this.shapes.person.draw(context, program_state, this.person_transformation, this.materials.person);
+    }
+
     display(context, program_state) {
         super.display(context, program_state);
         let model_transform = Mat4.identity();
@@ -395,5 +506,6 @@ export class Labyrinth extends Base_Scene {
         }
 
         this.draw_floor(context, program_state);
+        this.draw_person(context, program_state);
     }
 }
