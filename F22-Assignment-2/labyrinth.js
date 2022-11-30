@@ -622,8 +622,8 @@ export class Labyrinth extends Base_Scene {
         this.shapes.torch_fire.draw(
             context, program_state,
             Mat4.identity()
-                .times(Mat4.translation(20, y + 0.4, z))
-                .times(Mat4.scale(0.1, 0.1, 0.1)),
+                .times(Mat4.translation(x, y + 0.5, z))
+                .times(Mat4.scale(0.2, 0.2, 0.2)),
             this.materials.torch_fire
         );
 

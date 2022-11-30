@@ -637,13 +637,13 @@ const Funny_Shader = defs.Funny_Shader =
                     float a = animation_time, u = f_tex_coord.x, v = f_tex_coord.y;   
                     // Use an arbitrary math function to color in all pixels as a complex
                     if(v > 0.7) discard;
-                    vec2 uv = f_tex_coord.xy + vec2(rand(f_tex_coord.xy),rand(f_tex_coord.xy));
+                    vec2 uv = f_tex_coord.xy;
                     float time = a;
                     vec2 n0Uv = vec2(uv.x*1.4 + 0.01, uv.y + time*0.69);
                     vec2 n1Uv = vec2(uv.x*0.5 - 0.033, uv.y*2.0 + time*0.12);
                     vec2 n2Uv = vec2(uv.x*0.94 + 0.02, uv.y*3.0 + time*0.61);
                     
-                    float noiseA = clamp(rand(n0Uv) + rand(n1Uv) + rand(n2Uv), -1.0, 1.0);
+                    float noiseA = clamp(rand(n0Uv) + rand(n1Uv) + rand(n2Uv), 0.3, 1.0);
 
                     vec4 color = vec4(                                    
                         // function of the UV texture coordintaes of the pixel and of time.  
@@ -651,9 +651,9 @@ const Funny_Shader = defs.Funny_Shader =
                         noiseA,
                         0.4 * u * sin(17.0 * u ) +  0.4 * v * sin(11.0 * v ) + 0.4 * sin(13.0 * a),
                         0,
-                        5.0 * u * sin(27.0 * u ) + 3.0 * v * sin(11.0 * v ) + 1.0 * sin(13.0 * a)
+                        5.0 * u * sin(27.0 * u / 4.0) + 3.0 * v * sin(11.0 * v / 2.0) + 1.0 * sin(13.0 * a / 3.0)
                     );              
-                    if(color.w < 0.15) discard;                                                   
+                    if(color.w < 0.1) discard;                                                   
                     gl_FragColor = color;
                 }`;
         }
