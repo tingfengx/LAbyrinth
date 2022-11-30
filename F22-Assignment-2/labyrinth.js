@@ -1,5 +1,11 @@
 import {defs, tiny} from './examples/common.js';
-import {Color_Phong_Shader, Shadow_Textured_Phong_Shader, Depth_Texture_Shader_2D, Buffered_Texture, LIGHT_DEPTH_TEX_SIZE} from "./examples/shadow_shaders.js";
+import {
+    Buffered_Texture,
+    Color_Phong_Shader,
+    Depth_Texture_Shader_2D,
+    LIGHT_DEPTH_TEX_SIZE,
+    Shadow_Textured_Phong_Shader
+} from "./examples/shadow_shaders.js";
 
 //import {Shape_From_File} from './examples/obj-file-demo.js';
 const {
@@ -77,15 +83,14 @@ class Base_Scene extends Scene {
                 {
                     ambient: 1, diffusivity: 0.5, color: hex_color("#992828")
                 }),
-            pure: new Material(new Color_Phong_Shader(), {
-                }),
+            pure: new Material(new Color_Phong_Shader(), {}),
             light_src: new Material(new Phong_Shader(), {
                 color: color(1, 1, 1, 1), ambient: 1, diffusivity: 0, specularity: 0
-                }),
-            depth_tex:  new Material(new Depth_Texture_Shader_2D(), {
+            }),
+            depth_tex: new Material(new Depth_Texture_Shader_2D(), {
                 color: color(0, 0, .0, 1),
                 ambient: 1, diffusivity: 0, specularity: 0, texture: null
-                })
+            })
         };
 
         // vector direction in homo
@@ -167,7 +172,7 @@ export class Labyrinth extends Base_Scene {
         let res = [];
         for (let offset of offsets) {
             res.push(
-                vec(person_location[0] + offset[0], - person_location[2] - offset[1])
+                vec(person_location[0] + offset[0], -person_location[2] - offset[1])
             )
         }
         return res
@@ -528,7 +533,7 @@ export class Labyrinth extends Base_Scene {
             let ok = true;
             const new_person_location_tips = this.get_person_box_tips(new_person_location);
 
-            for (let i = 0; i < this.map_plane.length; i ++) {
+            for (let i = 0; i < this.map_plane.length; i++) {
                 const cur_square = this.map_plane[i];
                 if (this.box_collide_2d(
                     cur_square,
@@ -563,8 +568,9 @@ export class Labyrinth extends Base_Scene {
         });
     }
 
-    draw_box(context, program_state, x, y, z) {
-        return Mat4.identity().times(Mat4.translation(x, y, z));
+    draw_box(context, program_state, model_transform, x, y, z) {
+        model_transform = Mat4.identity().times(Mat4.translation(x, y, z));
+        return model_transform;
     }
 
     draw_floor(context, program_state, shadow_pass) {
@@ -572,7 +578,7 @@ export class Labyrinth extends Base_Scene {
             .times(Mat4.translation(20, -1, -20))
             //.times(Mat4.rotation(Math.PI / 2., 1, 0, 0))
             .times(Mat4.scale(20, 0.2, 20));
-        this.shapes.cube.draw(context, program_state, floor_transformation, shadow_pass?this.materials.perlin_floor:this.materials.pure);
+        this.shapes.cube.draw(context, program_state, floor_transformation, shadow_pass ? this.materials.perlin_floor : this.materials.pure);
     }
 
     draw_torch(context, program_state, x, y, z) {
@@ -668,15 +674,16 @@ export class Labyrinth extends Base_Scene {
     }
 
 
-    render_scene(context, program_state, shadow_pass, draw_light_source=false, draw_shadow=false){
+    render_scene(context, program_state, shadow_pass, draw_light_source = false, draw_shadow = false) {
         let light_position = this.global_sun_position;
         let light_color = this.sun_light_color;
         const t = program_state.animation_time;
         program_state.draw_shadow = draw_shadow;
+        let box_model_transform = Mat4.identity();
 
         if (draw_light_source && shadow_pass) {
             this.shapes.sphere.draw(context, program_state,
-                Mat4.translation(light_position[0], light_position[1], light_position[2]).times(Mat4.scale(.5,.5,.5)),
+                Mat4.translation(light_position[0], light_position[1], light_position[2]).times(Mat4.scale(.5, .5, .5)),
                 this.materials.light_src.override({color: light_color}));
         }
 
@@ -684,9 +691,9 @@ export class Labyrinth extends Base_Scene {
             const x = original_box_size * this.box_coord[i][0];
             const y = original_box_size * this.box_coord[i][1];
             const z = -original_box_size * this.box_coord[i][2];
-            let box_model_transform = this.draw_box(context, program_state, x, y, z);
+            box_model_transform = this.draw_box(context, program_state, box_model_transform, x, y, z);
             //if (i % 3 === 0) this.draw_torch(context, program_state, x + 1.0, y + 0.3, z);
-            this.shapes.cube.draw(context, program_state, box_model_transform, shadow_pass?this.materials.cobble_stone_plane:this.materials.pure);
+            this.shapes.cube.draw(context, program_state, box_model_transform, shadow_pass ? this.materials.cobble_stone_plane : this.materials.pure);
 
         }
         this.draw_floor(context, program_state, shadow_pass);
@@ -732,24 +739,20 @@ export class Labyrinth extends Base_Scene {
         program_state.light_tex_mat = light_proj_mat;
         program_state.view_mat = light_view_mat;
         program_state.projection_transform = light_proj_mat;
-        this.render_scene(context, program_state, false,false, false);
+        this.render_scene(context, program_state, false, false, false);
 
         gl.bindFramebuffer(gl.FRAMEBUFFER, null);
         gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
         program_state.view_mat = program_state.camera_inverse;
-        program_state.projection_transform = Mat4.perspective(Math.PI / 4, context.width / context.height, 0.5, 500);
-        //program_state.projection_transform = Mat4.perspective(Math.PI / 2.5, context.width / context.height, 0.01, 100);
-        this.render_scene(context, program_state, true,true, true);
-
-
+        program_state.projection_transform = Mat4.perspective(Math.PI / 2.5, context.width / context.height, 0.01, 100);
+        this.render_scene(context, program_state, true, true, true);
 
         let model_transform = Mat4.identity();
-
         for (let i = 0; i < this.box_coord.length; i++) {
             const x = original_box_size * this.box_coord[i][0];
             const y = original_box_size * this.box_coord[i][1];
             const z = -original_box_size * this.box_coord[i][2];
-            model_transform = this.draw_box(context, program_state, x, y, z);
+            model_transform = this.draw_box(context, program_state, model_transform, x, y, z);
             if (i % 3 === 0) this.draw_torch(context, program_state, x + 1.0, y + 0.3, z);
             //this.shapes.cube.draw(context, program_state, model_transform, this.materials.cobble_stone);
         }
