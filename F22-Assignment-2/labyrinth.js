@@ -59,7 +59,8 @@ class Base_Scene extends Scene {
                 }),
             perlin_floor: new Material(new Shadow_Textured_Phong_Shader(1),
                 {
-                    ambient: .3, diffusivity: 0.3, specularity: 0.3,
+                    ambient: 0.3, diffusivity: 0.5, specularity: 0.4,
+                    color: hex_color("#ffff0f"),
                     color_texture: new Texture("./assets/perlin_stones/ground.png"),
                     light_depth_texture: null
                 }),
@@ -569,9 +570,9 @@ export class Labyrinth extends Base_Scene {
     draw_floor(context, program_state, shadow_pass) {
         const floor_transformation = Mat4.identity()
             .times(Mat4.translation(20, -1, -20))
-            .times(Mat4.rotation(Math.PI / 2., 1, 0, 0))
-            .times(Mat4.scale(20, 20, 0.2));
-        this.shapes.floor.draw(context, program_state, floor_transformation, shadow_pass?this.materials.perlin_floor:this.materials.pure);
+            //.times(Mat4.rotation(Math.PI / 2., 1, 0, 0))
+            .times(Mat4.scale(20, 0.2, 20));
+        this.shapes.cube.draw(context, program_state, floor_transformation, shadow_pass?this.materials.perlin_floor:this.materials.pure);
     }
 
     draw_torch(context, program_state, x, y, z) {
