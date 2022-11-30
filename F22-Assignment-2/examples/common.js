@@ -1,5 +1,5 @@
-import {tiny} from '../tiny-graphics.js';
-import {widgets} from '../tiny-graphics-widgets.js';
+import { tiny } from '../tiny-graphics.js';
+import { widgets } from '../tiny-graphics-widgets.js';
 // Pull these names into this module's scope for convenience:
 const {
     Vector, Vector3, vec, vec3, vec4, color, Matrix, Mat4,
@@ -10,7 +10,7 @@ Object.assign(tiny, widgets);
 
 const defs = {};
 
-export {tiny, defs};
+export { tiny, defs };
 
 const Triangle = defs.Triangle =
     class Triangle extends Shape {
@@ -276,7 +276,7 @@ const Subdivision_Sphere = defs.Subdivision_Sphere =
                         if (tex[q[0]][0] < 0.5) {
                             this.indices[q[1]] = this.arrays.position.length;
                             this.arrays.position.push(this.arrays.position[q[0]].copy());
-                            this.arrays.normal.push(this.arrays.normal  [q[0]].copy());
+                            this.arrays.normal.push(this.arrays.normal[q[0]].copy());
                             tex.push(tex[q[0]].plus(vec(1, 0)));
                         }
                     }
@@ -531,9 +531,9 @@ const Minimal_Webgl_Demo = defs.Minimal_Webgl_Demo =
         constructor(webgl_manager, control_panel) {
             super(webgl_manager, control_panel);
             // Don't create any DOM elements to control this scene:
-            this.widget_options = {make_controls: false, show_explanation: false};
+            this.widget_options = { make_controls: false, show_explanation: false };
             // Send a Triangle's vertices to the GPU's buffers:
-            this.shapes = {triangle: new Minimal_Shape()};
+            this.shapes = { triangle: new Minimal_Shape() };
             this.shader = new Basic_Shader();
         }
 
@@ -598,7 +598,7 @@ const Funny_Shader = defs.Funny_Shader =
             // update_GPU():  Define how to synchronize our JavaScript's variables to the GPU's:
             const [P, C, M] = [program_state.projection_transform, program_state.camera_inverse, model_transform],
                 PCM = P.times(C).times(M);
-            context.uniformMatrix4fv(gpu_addresses.projection_camera_model_transform, false, Mat.flatten_2D_to_1D(PCM.transposed()));
+            context.uniformMatrix4fv(gpu_addresses.projection_camera_model_transform, false, Mat4.flatten_2D_to_1D(PCM.transposed()));
             context.uniform1f(gpu_addresses.animation_time, program_state.animation_time / 1000);
         }
 
@@ -629,15 +629,32 @@ const Funny_Shader = defs.Funny_Shader =
             // ********* FRAGMENT SHADER *********
             return this.shared_glsl_code() + `
                 uniform float animation_time;
+                float rand(vec2 co){
+                    return fract(sin(dot(co, vec2(12.9898, 78.233))) * 43758.5453);
+                }
+
                 void main(){ 
                     float a = animation_time, u = f_tex_coord.x, v = f_tex_coord.y;   
-                    // Use an arbitrary math function to color in all pixels as a complex                                                                  
-                    gl_FragColor = vec4(                                    
+                    // Use an arbitrary math function to color in all pixels as a complex
+                    if(v > 0.7) discard;
+                    vec2 uv = f_tex_coord.xy + vec2(rand(f_tex_coord.xy),rand(f_tex_coord.xy));
+                    float time = a;
+                    vec2 n0Uv = vec2(uv.x*1.4 + 0.01, uv.y + time*0.69);
+                    vec2 n1Uv = vec2(uv.x*0.5 - 0.033, uv.y*2.0 + time*0.12);
+                    vec2 n2Uv = vec2(uv.x*0.94 + 0.02, uv.y*3.0 + time*0.61);
+                    
+                    float noiseA = clamp(rand(n0Uv) + rand(n1Uv) + rand(n2Uv), -1.0, 1.0);
+
+                    vec4 color = vec4(                                    
                         // function of the UV texture coordintaes of the pixel and of time.  
-                        2.0 * u * sin(17.0 * u ) + 3.0 * v * sin(11.0 * v ) + 1.0 * sin(13.0 * a),
-                        3.0 * u * sin(18.0 * u ) + 4.0 * v * sin(12.0 * v ) + 2.0 * sin(14.0 * a),
-                        4.0 * u * sin(19.0 * u ) + 5.0 * v * sin(13.0 * v ) + 3.0 * sin(15.0 * a),
-                        5.0 * u * sin(20.0 * u ) + 6.0 * v * sin(14.0 * v ) + 4.0 * sin(16.0 * a));
+                        // 2.0 * u * sin(17.0 * u ) + 3.0 * v * sin(11.0 * v ) + 1.0 * sin(13.0 * a),
+                        noiseA,
+                        0.4 * u * sin(17.0 * u ) +  0.4 * v * sin(11.0 * v ) + 0.4 * sin(13.0 * a),
+                        0,
+                        5.0 * u * sin(27.0 * u ) + 3.0 * v * sin(11.0 * v ) + 1.0 * sin(13.0 * a)
+                    );              
+                    if(color.w < 0.15) discard;                                                   
+                    gl_FragColor = color;
                 }`;
         }
     }
@@ -785,7 +802,7 @@ const Phong_Shader = defs.Phong_Shader =
             // within this function, one data field at a time, to fully initialize the shader for a draw.
 
             // Fill in any missing fields in the Material object with custom defaults for this shader:
-            const defaults = {color: color(0, 0, 0, 1), ambient: 0, diffusivity: 1, specularity: 1, smoothness: 40};
+            const defaults = { color: color(0, 0, 0, 1), ambient: 0, diffusivity: 1, specularity: 1, smoothness: 40 };
             material = Object.assign({}, defaults, material);
 
             this.send_material(context, gpu_addresses, material);
@@ -996,7 +1013,7 @@ const Movement_Controls = defs.Movement_Controls =
         add_mouse_controls(canvas) {
             // add_mouse_controls():  Attach HTML mouse events to the drawing canvas.
             // First, measure mouse steering, for rotating the flyaround camera:
-            this.mouse = {"from_center": vec(0, 0)};
+            this.mouse = { "from_center": vec(0, 0) };
             const mouse_position = (e, rect = canvas.getBoundingClientRect()) =>
                 vec(e.clientX - (rect.left + rect.right) / 2, e.clientY - (rect.bottom + rect.top) / 2);
             // Set up mouse response.  The last one stops us from reacting if the mouse leaves the canvas:

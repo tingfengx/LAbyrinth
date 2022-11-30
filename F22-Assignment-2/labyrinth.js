@@ -1,4 +1,4 @@
-import {defs, tiny} from './examples/common.js';
+import { defs, tiny } from './examples/common.js';
 import {
     Buffered_Texture,
     Color_Phong_Shader,
@@ -22,7 +22,9 @@ const {
     Textured_Phong,
     Fake_Bump_Map,
     Phong_Shader,
-    Textured_Phong_Normal_Map
+    Textured_Phong_Normal_Map,
+    Funny_Shader,
+    Texture_Scroll_X
 } = defs;
 
 const original_box_size = 2;
@@ -41,7 +43,7 @@ class Base_Scene extends Scene {
             'cube': new Cube_Normal(),
             'floor': new Square(),
             'torch_wood': new Cube(),
-            'torch_fire': new defs.Subdivision_Sphere(3),
+            'torch_fire': new Subdivision_Sphere(8),
             'person': new Cube(),
             'sphere': new Subdivision_Sphere(4)
         };
@@ -49,7 +51,7 @@ class Base_Scene extends Scene {
         // *** Materials
         this.materials = {
             plastic: new Material(new defs.Phong_Shader(),
-                {ambient: .4, diffusivity: .6, color: hex_color("#ffffff")}),
+                { ambient: .4, diffusivity: .6, color: hex_color("#ffffff") }),
             cobble_stone: new Material(new Textured_Phong_Normal_Map(),
                 {
                     ambient: 0.2, diffusivity: 0.3, specularity: 0.3, color: hex_color("#964B00"),
@@ -90,7 +92,8 @@ class Base_Scene extends Scene {
             depth_tex: new Material(new Depth_Texture_Shader_2D(), {
                 color: color(0, 0, .0, 1),
                 ambient: 1, diffusivity: 0, specularity: 0, texture: null
-            })
+            }),
+            torch_fire: new Material(new Funny_Shader())
         };
 
         // vector direction in homo
@@ -596,10 +599,11 @@ export class Labyrinth extends Base_Scene {
         this.shapes.torch_fire.draw(
             context, program_state,
             Mat4.identity()
-                .times(Mat4.translation(x, y + 0.4, z))
+                .times(Mat4.translation(20, y + 0.4, z))
                 .times(Mat4.scale(0.1, 0.1, 0.1)),
-            this.materials.fire
+            this.materials.torch_fire
         );
+
         program_state.lights.push(new Light(vec4(x, y + 0.4, z, 1), color(0.9, 0.9, 0.5, 1), 10));
     }
 
@@ -684,7 +688,7 @@ export class Labyrinth extends Base_Scene {
         if (draw_light_source && shadow_pass) {
             this.shapes.sphere.draw(context, program_state,
                 Mat4.translation(light_position[0], light_position[1], light_position[2]).times(Mat4.scale(.5, .5, .5)),
-                this.materials.light_src.override({color: light_color}));
+                this.materials.light_src.override({ color: light_color }));
         }
 
         for (let i = 0; i < this.box_coord.length; i++) {
@@ -692,7 +696,7 @@ export class Labyrinth extends Base_Scene {
             const y = original_box_size * this.box_coord[i][1];
             const z = -original_box_size * this.box_coord[i][2];
             box_model_transform = this.draw_box(context, program_state, box_model_transform, x, y, z);
-            //if (i % 3 === 0) this.draw_torch(context, program_state, x + 1.0, y + 0.3, z);
+            if (i % 3 === 0) this.draw_torch(context, program_state, x + 1.0, y + 0.3, z);
             this.shapes.cube.draw(context, program_state, box_model_transform, shadow_pass ? this.materials.cobble_stone_plane : this.materials.pure);
 
         }
@@ -754,7 +758,7 @@ export class Labyrinth extends Base_Scene {
             const z = -original_box_size * this.box_coord[i][2];
             model_transform = this.draw_box(context, program_state, model_transform, x, y, z);
             if (i % 3 === 0) this.draw_torch(context, program_state, x + 1.0, y + 0.3, z);
-            //this.shapes.cube.draw(context, program_state, model_transform, this.materials.cobble_stone);
+            this.shapes.cube.draw(context, program_state, model_transform, this.materials.cobble_stone);
         }
 
         //this.draw_floor(context, program_state);
