@@ -16,6 +16,8 @@ const {
     Textured_Phong_Normal_Map
 } = defs;
 
+const original_box_size = 2;
+
 class Base_Scene extends Scene {
     /**
      *  **Base_scene** is a Scene that can be added to any display canvas.
@@ -108,6 +110,70 @@ export class Labyrinth extends Base_Scene {
     constructor() {
         super();
         this.get_coords();
+        this.map_plane = [];
+        const offsets = this.get_offsets(1)
+        let res = [];
+        // discard y components, recover projected position on 2d plane
+        for (let c of this.box_coord) {
+            let resc = [];
+            const center = vec(original_box_size * c[0], original_box_size * c[2])
+            for (let offset of offsets) {
+                resc.push(vec(
+                    center[0] + offset[0],
+                    center[1] + offset[1]
+                ))
+            }
+            res.push(resc);
+        }
+        this.map_plane = res
+    }
+
+    get_offsets(base) {
+        return [
+            vec(base, -1 * base),
+            vec(base, base),
+            vec(-1 * base, base),
+            vec(-1 * base, -1 * base)
+        ];
+    }
+
+    get_person_box_tips(hypothetic_person_position) {
+        const person_location = hypothetic_person_position ? hypothetic_person_position : this.person_location;
+        const base = 0.5 * 0.3;
+        const offsets = this.get_offsets(base);
+        let res = [];
+        for (let offset of offsets) {
+            res.push(
+                vec(person_location[0] + offset[0], - person_location[2] - offset[1])
+            )
+        }
+        return res
+    }
+
+    box_collide_1d(box1, box2) {
+        // box1, box2: vec2 = (xmin1, xmax1), (xmin2, xmax2)
+        const xmin1 = box1[0];
+        const xmax1 = box1[1];
+        const xmin2 = box2[0];
+        const xmax2 = box2[1];
+        return xmax1 >= xmin2 && xmax2 >= xmin1;
+    }
+
+    box_collide_2d(box1, box2) {
+        // box1, box2: array [ 4 elements ]
+        // array[i] = vec2 ( x, y )
+
+        const xmin1 = Math.min(...box1.map(c => c[0]));
+        const xmax1 = Math.max(...box1.map(c => c[0]));
+        const ymin1 = Math.min(...box1.map(c => c[1]));
+        const ymax1 = Math.max(...box1.map(c => c[1]));
+        const xmin2 = Math.min(...box2.map(c => c[0]));
+        const xmax2 = Math.max(...box2.map(c => c[0]));
+        const ymin2 = Math.min(...box2.map(c => c[1]));
+        const ymax2 = Math.max(...box2.map(c => c[1]));
+
+        return this.box_collide_1d([xmin1, xmax1], [xmin2, xmax2]) &&
+            this.box_collide_1d([ymin1, ymax1], [ymin2, ymax2])
     }
 
     get_coords() {
@@ -391,6 +457,7 @@ export class Labyrinth extends Base_Scene {
                             -1 * this.person_location[2]
                         )));
         });
+
         this.key_triggered_button("Rotate Right", ["d"], () => {
             this.look_at_direction = Mat4.rotation(-Math.PI / 16, 0, 1, 0)
                 .times(this.look_at_direction);
@@ -420,21 +487,42 @@ export class Labyrinth extends Base_Scene {
                             -1 * this.person_location[2]
                         )));
         });
+
         this.key_triggered_button("Move", ["w"], () => {
             const scaled_look_at_direction = this.look_at_direction.times(0.12)
-            this.person_transformation =
+            const new_person_transformation =
                 Mat4.translation(
                     scaled_look_at_direction[0],
                     scaled_look_at_direction[1],
                     scaled_look_at_direction[2]
                 ).times(this.person_transformation);
-            this.camera_transformation = this.camera_transformation.times(Mat4.translation(
+            const new_camera_transformation = this.camera_transformation.times(Mat4.translation(
                 -1 * scaled_look_at_direction[0],
                 -1 * scaled_look_at_direction[1],
                 -1 * scaled_look_at_direction[2]
             ));
-            this.person_location = this.person_location.plus(scaled_look_at_direction);
+            const new_person_location = this.person_location.plus(scaled_look_at_direction);
+            let ok = true;
+            const new_person_location_tips = this.get_person_box_tips(new_person_location);
+
+            for (let i = 0; i < this.map_plane.length; i ++) {
+                const cur_square = this.map_plane[i];
+                if (this.box_collide_2d(
+                    cur_square,
+                    new_person_location_tips
+                )) {
+                    ok = false;
+                    break;
+                }
+            }
+
+            if (ok) {
+                this.person_transformation = new_person_transformation;
+                this.camera_transformation = new_camera_transformation;
+                this.person_location = new_person_location;
+            }
         });
+
         this.key_triggered_button("Back", ["s"], () => {
             const scaled_look_at_direction = this.look_at_direction.times(0.12)
             this.person_transformation =
@@ -495,7 +583,7 @@ export class Labyrinth extends Base_Scene {
     display(context, program_state) {
         super.display(context, program_state);
         let model_transform = Mat4.identity();
-        let original_box_size = 2;
+
         for (let i = 0; i < this.box_coord.length; i++) {
             const x = original_box_size * this.box_coord[i][0];
             const y = original_box_size * this.box_coord[i][1];
