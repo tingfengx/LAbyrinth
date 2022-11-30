@@ -459,6 +459,8 @@ export class Labyrinth extends Base_Scene {
     }
 
     make_control_panel() {
+        this.control_panel.innerHTML += "For the best experience, please don't press multiple keys at the same time.<br>";
+
         this.key_triggered_button("Rotate Left", ["a"], () => {
             this.look_at_direction = Mat4.rotation(Math.PI / 16, 0, 1, 0)
                 .times(this.look_at_direction);
@@ -556,19 +558,40 @@ export class Labyrinth extends Base_Scene {
 
         this.key_triggered_button("Back", ["s"], () => {
             const scaled_look_at_direction = this.look_at_direction.times(0.12)
-            this.person_transformation =
+            const new_person_transformation =
                 Mat4.translation(
                     -1 * scaled_look_at_direction[0],
                     -1 * scaled_look_at_direction[1],
                     -1 * scaled_look_at_direction[2]
                 ).times(this.person_transformation);
-            this.camera_transformation = this.camera_transformation.times(Mat4.translation(
+            const new_camera_transformation = this.camera_transformation.times(Mat4.translation(
                 scaled_look_at_direction[0],
                 scaled_look_at_direction[1],
                 scaled_look_at_direction[2]
             ));
-            this.person_location = this.person_location.plus(scaled_look_at_direction);
+            // person moves backward
+            const new_person_location = this.person_location.plus(scaled_look_at_direction.times(-1));
+            let ok = true;
+            const new_person_location_tips = this.get_person_box_tips(new_person_location);
+
+            for (let i = 0; i < this.map_plane.length; i++) {
+                const cur_square = this.map_plane[i];
+                if (this.box_collide_2d(
+                    cur_square,
+                    new_person_location_tips
+                )) {
+                    ok = false;
+                    break;
+                }
+            }
+
+            if (ok) {
+                this.person_transformation = new_person_transformation;
+                this.camera_transformation = new_camera_transformation;
+                this.person_location = new_person_location;
+            }
         });
+
     }
 
     draw_box(context, program_state, model_transform, x, y, z) {
