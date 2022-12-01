@@ -956,19 +956,13 @@ const Textured_Phong_Normal_Map = defs.Textured_Phong_Normal_Map =
 
         update_GPU(context, gpu_addresses, gpu_state, model_transform, material) {
             super.update_GPU(context, gpu_addresses, gpu_state, model_transform, material);
+            context.uniform1f(gpu_addresses.dist, material.dist || 0);
 
-            if (material.texture && material.texture.ready) {
-                // Select texture unit 0 for the fragment shader Sampler2D uniform called "texture":
-                context.uniform1i(gpu_addresses.texture, 1);
-                // For this draw, use the texture image from correct the GPU buffer:
-                material.texture.activate(context);
-            }
-
-            if (material.normal && material.normal.ready) {
-                // Select texture unit 1 for the fragment shader Sampler2D uniform called "normal":
+            if (material.normal && material.normal.ready && material.texture && material.texture.ready) {
                 context.uniform1i(gpu_addresses.normal, 0);
-                // For this draw, use the normal image from correct the GPU buffer:
                 material.normal.activate(context);
+                context.uniform1i(gpu_addresses.texture, 1);
+                material.texture.activate(context, 1); // :)
             }
         }
     }
