@@ -69,49 +69,8 @@ const Square_Normal = defs.Square_Normal =
             this.arrays.texture_coord = Vector.cast([0, 0], [1, 0], [0, 1], [1, 1]);
             // Use two triangles this time, indexing into four distinct vertices:
             this.indices.push(0, 1, 2, 1, 3, 2);
-            // Tangents
+            // Tangents, used for normal map
             this.arrays.tangents = Vector3.cast([1, 0, 0], [1, 0, 0], [1, 0, 0], [1, 0, 0]);
-
-            // const triangles = [[0, 1, 2], [1, 3, 2]]
-            // for (let i = 0; i < triangles.length; i++) {
-            //     const a = triangles[i][0];
-            //     const b = triangles[i][1];
-            //     const c = triangles[i][2];
-            //
-            //     // respective positions
-            //     const apos = this.arrays.position[a];
-            //     const bpos = this.arrays.position[b];
-            //     const cpos = this.arrays.position[c];
-            //
-            //     // two edges, a -> b and a -> c; b <- a -> c triangle
-            //     // .minus b/c no overriding for "-"
-            //     const e1 = bpos.minus(apos);
-            //     const e2 = cpos.minus(apos);
-            //
-            //     // for e1, a -> b
-            //     const uv1 = this.arrays.texture_coord[b].minus(this.arrays.texture_coord[a]);
-            //     // for e2, a -> c
-            //     const uv2 = this.arrays.texture_coord[c].minus(this.arrays.texture_coord[a]);
-            //     // det[uv1, uv2]
-            //     const det = (uv1[0] * uv2[1] - uv1[1] * uv2[0]);
-            //
-            //     e1.scale_by(uv2[1]);
-            //     e2.scale_by(uv1[1]);
-            //
-            //     const vec3tangent = e1.minus(e2);
-            //     vec3tangent.scale_by(1. / det);
-            //
-            //     const abc = [a, b, c];
-            //     for (let j = 0; j < abc.length; j++) {
-            //         this.arrays.tangents[abc[j]] = this.arrays.tangents[abc[j]].plus(vec3tangent);
-            //     }
-            // }
-            //
-            // // in place normalization
-            // for (let i = 0; i < this.arrays.tangents.length; i++) {
-            //     this.arrays.tangents[i].normalize();
-            // }
-
         }
     }
 

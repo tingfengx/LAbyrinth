@@ -1,9 +1,10 @@
-import { defs, tiny } from './examples/common.js';
+import {defs, tiny} from './examples/common.js';
 import {
     Buffered_Texture,
     Color_Phong_Shader,
     Depth_Texture_Shader_2D,
-    LIGHT_DEPTH_TEX_SIZE, Shadow_Textured_Phong_NM_Shader,
+    LIGHT_DEPTH_TEX_SIZE,
+    Shadow_Textured_Phong_NM_Shader,
     Shadow_Textured_Phong_Shader
 } from "./examples/shadow_shaders.js";
 
@@ -42,16 +43,16 @@ class Base_Scene extends Scene {
             'cube': new Cube_Normal(),
             'floor': new Square(),
             'torch_wood': new Cube(),
-            'torch_fire': new Subdivision_Sphere(8),
+            'torch_fire': new Subdivision_Sphere(3),
             'person': new Cube(),
-            'sphere': new Subdivision_Sphere(4),
+            'sphere': new Subdivision_Sphere(3),
             'treasure_box': new Cube(),
         };
 
         // *** Materials
         this.materials = {
             plastic: new Material(new defs.Phong_Shader(),
-                { ambient: .4, diffusivity: .6, color: hex_color("#ffffff") }),
+                {ambient: .4, diffusivity: .6, color: hex_color("#ffffff")}),
             cobble_stone: new Material(new Textured_Phong_Normal_Map(),
                 {
                     ambient: 0.2, diffusivity: 0.3, specularity: 0.3, color: hex_color("#964B00"),
@@ -93,7 +94,7 @@ class Base_Scene extends Scene {
                 color: color(0, 0, .0, 1),
                 ambient: 1, diffusivity: 0, specularity: 0, texture: null
             }),
-            torch_fire: new Material(new Funny_Shader()),
+            torch_fire: new Material(new Funny_Shader(), {}),
             treasure_box: new Material(new Textured_Phong(), {
                 ambient: 1, diffusivity: 0, specularity: 0,
                 texture: new Texture("./assets/box.png")
@@ -114,7 +115,8 @@ class Base_Scene extends Scene {
             .times(Mat4.rotation(Math.PI / 2, 0, 1, 0))
             .times(Mat4.translation(-2, -0.8, 2));
 
-        this.box_transform = Mat4.translation(34, 0, -10, 0)
+        this.goal_position = vec3(34, 0, -10);
+        this.treasure_base_transform = Mat4.translation(...this.goal_position)
             .times(Mat4.scale(0.5, 0.5, 0.5));
     }
 
@@ -183,6 +185,18 @@ export class Labyrinth extends Base_Scene {
         for (let offset of offsets) {
             res.push(
                 vec(person_location[0] + offset[0], -person_location[2] - offset[1])
+            )
+        }
+        return res
+    }
+
+    get_wall_brick_box_tips(box_location) {
+        const base = 1;
+        const offsets = this.get_offsets(base);
+        let res = [];
+        for (let offset of offsets) {
+            res.push(
+                vec(box_location[0] + offset[0], -box_location[2] - offset[1])
             )
         }
         return res
@@ -465,6 +479,34 @@ export class Labyrinth extends Base_Scene {
         ]
     }
 
+    check_winning_condition(new_person_location_tips) {
+        if (this.box_collide_2d(
+            new_person_location_tips,
+            this.get_wall_brick_box_tips(this.goal_position)
+        )) {
+            if (confirm("You won the game, restart?")) {
+                location.reload();
+            }
+            // returns ok?
+            return false;
+        }
+        // returns ok?
+        return true
+    }
+
+    check_person_colliding_wall(new_person_location_tips) {
+        for (let i = 0; i < this.map_plane.length; i++) {
+            const cur_square = this.map_plane[i];
+            if (this.box_collide_2d(
+                cur_square,
+                new_person_location_tips
+            )) {
+                return false;
+            }
+        }
+        return true;
+    }
+
     make_control_panel() {
         this.control_panel.innerHTML += "For the best experience, please don't press multiple keys at the same time.<br>";
 
@@ -545,16 +587,8 @@ export class Labyrinth extends Base_Scene {
             let ok = true;
             const new_person_location_tips = this.get_person_box_tips(new_person_location);
 
-            for (let i = 0; i < this.map_plane.length; i++) {
-                const cur_square = this.map_plane[i];
-                if (this.box_collide_2d(
-                    cur_square,
-                    new_person_location_tips
-                )) {
-                    ok = false;
-                    break;
-                }
-            }
+            ok = ok && this.check_person_colliding_wall(new_person_location_tips);
+            ok = ok && this.check_winning_condition(new_person_location_tips);
 
             if (ok) {
                 this.person_transformation = new_person_transformation;
@@ -581,16 +615,9 @@ export class Labyrinth extends Base_Scene {
             let ok = true;
             const new_person_location_tips = this.get_person_box_tips(new_person_location);
 
-            for (let i = 0; i < this.map_plane.length; i++) {
-                const cur_square = this.map_plane[i];
-                if (this.box_collide_2d(
-                    cur_square,
-                    new_person_location_tips
-                )) {
-                    ok = false;
-                    break;
-                }
-            }
+
+            ok = ok && this.check_person_colliding_wall(new_person_location_tips);
+            ok = ok && this.check_winning_condition(new_person_location_tips);
 
             if (ok) {
                 this.person_transformation = new_person_transformation;
@@ -633,8 +660,7 @@ export class Labyrinth extends Base_Scene {
                 .times(Mat4.scale(0.2, 0.2, 0.2)),
             this.materials.torch_fire
         );
-
-        program_state.lights.push(new Light(vec4(x, y + 0.4, z, 1), color(0.9, 0.9, 0.5, 1), 10));
+        // program_state.lights.push(new Light(vec4(x, y + 0.4, z, 1), color(0.9, 0.9, 0.5, 1), 10));
     }
 
     draw_person(context, program_state) {
@@ -718,7 +744,7 @@ export class Labyrinth extends Base_Scene {
         if (draw_light_source && shadow_pass) {
             this.shapes.sphere.draw(context, program_state,
                 Mat4.translation(light_position[0], light_position[1], light_position[2]).times(Mat4.scale(.5, .5, .5)),
-                this.materials.light_src.override({ color: light_color }));
+                this.materials.light_src.override({color: light_color}));
         }
 
         for (let i = 0; i < this.box_coord.length; i++) {
@@ -726,7 +752,7 @@ export class Labyrinth extends Base_Scene {
             const y = original_box_size * this.box_coord[i][1];
             const z = -original_box_size * this.box_coord[i][2];
             box_model_transform = this.draw_box(context, program_state, box_model_transform, x, y, z);
-            if (i % 3 === 0) this.draw_torch(context, program_state, x + 1.0, y + 0.3, z);
+            // if (i % 3 === 0) this.draw_torch(context, program_state, x + 1.0, y + 0.3, z);
             this.shapes.cube.draw(context, program_state, box_model_transform, shadow_pass ? this.materials.cobble_stone_plane : this.materials.pure);
 
         }
@@ -734,8 +760,7 @@ export class Labyrinth extends Base_Scene {
 
     }
 
-    transform_treasure_box(context, program_state, model_transform) {
-        //  This should make changes to the model_transform matrix, and return the newest model_transform.
+    draw_treasure_box(context, program_state) {
         const t = program_state.animation_time / 1000;
         const max_degree = .5 * Math.PI;
         const a = max_degree / 2;
@@ -743,14 +768,11 @@ export class Labyrinth extends Base_Scene {
         const w = 2;
         const cur_degree = a + b * Math.sin(w * t);
 
-        const translation_matrix = Mat4.translation(0, cur_degree, 0);
-
-        model_transform = model_transform
-            .times(translation_matrix);
-
-        return model_transform;
+        const box_transform =
+            Mat4.translation(0, cur_degree, 0)
+                .times(this.treasure_base_transform);
+        this.shapes.treasure_box.draw(context, program_state, box_transform, this.materials.treasure_box);
     }
-
 
     display(context, program_state) {
         super.display(context, program_state);
@@ -811,8 +833,6 @@ export class Labyrinth extends Base_Scene {
 
         //this.draw_floor(context, program_state);
         this.draw_person(context, program_state);
-
-        let box_transform = this.transform_treasure_box(context, program_state, this.box_transform);
-        this.shapes.treasure_box.draw(context, program_state, box_transform, this.materials.treasure_box);
+        this.draw_treasure_box(context, program_state);
     }
 }
