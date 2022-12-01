@@ -24,7 +24,6 @@ const {
     Phong_Shader,
     Textured_Phong_Normal_Map,
     Funny_Shader,
-    Texture_Scroll_X
 } = defs;
 
 const original_box_size = 2;
@@ -45,7 +44,8 @@ class Base_Scene extends Scene {
             'torch_wood': new Cube(),
             'torch_fire': new Subdivision_Sphere(8),
             'person': new Cube(),
-            'sphere': new Subdivision_Sphere(4)
+            'sphere': new Subdivision_Sphere(4),
+            'treasure_box': new Cube(),
         };
 
         // *** Materials
@@ -93,7 +93,11 @@ class Base_Scene extends Scene {
                 color: color(0, 0, .0, 1),
                 ambient: 1, diffusivity: 0, specularity: 0, texture: null
             }),
-            torch_fire: new Material(new Funny_Shader())
+            torch_fire: new Material(new Funny_Shader()),
+            treasure_box: new Material(new Textured_Phong(), {
+                ambient: 1, diffusivity: 0, specularity: 0,
+                texture: new Texture("./assets/box.png")
+            })
         };
 
         // vector direction in homo
@@ -727,6 +731,24 @@ export class Labyrinth extends Base_Scene {
 
     }
 
+    transform_treasure_box(context, program_state, model_transform) {
+        //  This should make changes to the model_transform matrix, and return the newest model_transform.
+        const t = program_state.animation_time / 1000;
+        const max_degree = .05 * Math.PI;
+        const a = max_degree / 2;
+        const b = max_degree / 2;
+        const w = 2;
+        const cur_degree = a + b * Math.sin(w * t);
+
+        const translation_matrix = Mat4.translation(0, cur_degree, 0);
+
+        model_transform = model_transform
+            .times(translation_matrix);
+
+        return model_transform;
+    }
+
+
     display(context, program_state) {
         super.display(context, program_state);
 
@@ -786,5 +808,17 @@ export class Labyrinth extends Base_Scene {
 
         //this.draw_floor(context, program_state);
         this.draw_person(context, program_state);
+
+        // let box_transform = Mat4.translation(34, 0, -8, 0)
+        // .times(Mat4.scale(0.5, 0.5, 0.5));
+
+        let box_transform = Mat4.translation(5, 0, -2, 0)
+            .times(Mat4.scale(0.5, 0.5, 0.5));
+
+        for (let i = 0; i < 4; i++) {
+            box_transform = this.transform_treasure_box(context, program_state, box_transform);
+        }
+
+        this.shapes.treasure_box.draw(context, program_state, box_transform, this.materials.treasure_box);
     }
 }
