@@ -946,7 +946,6 @@ const Textured_Phong_Normal_Map = defs.Textured_Phong_Normal_Map =
                 // For this draw, use the texture image from correct the GPU buffer:
                 material.texture.activate(context);
             }
-
             if (material.normal && material.normal.ready) {
                 // Select texture unit 1 for the fragment shader Sampler2D uniform called "normal":
                 context.uniform1i(gpu_addresses.normal, 0);

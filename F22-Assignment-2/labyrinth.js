@@ -4,7 +4,8 @@ import {
     Color_Phong_Shader,
     Depth_Texture_Shader_2D,
     LIGHT_DEPTH_TEX_SIZE,
-    Shadow_Textured_Phong_Shader
+    Shadow_Textured_Phong_Shader,
+    Shadow_Textured_Phong_NM_Shader
 } from "./examples/shadow_shaders.js";
 
 //import {Shape_From_File} from './examples/obj-file-demo.js';
@@ -52,21 +53,23 @@ class Base_Scene extends Scene {
                 {ambient: .4, diffusivity: .6, color: hex_color("#ffffff")}),
             cobble_stone: new Material(new Textured_Phong_Normal_Map(),
                 {
-                    ambient: 0.2, diffusivity: 0.3, specularity: 0.3, color: hex_color("#964B00"),
+                    ambient: 0.2, diffusivity: 0.3, specularity: 0.3,
+                    color: hex_color("#B7B09C"),
                     texture: new Texture("./assets/brickwall.jpg"),
-                    normal: new Texture("./assets/brickwall_normal.jpg")
+                    normal_map: new Texture("./assets/brickwall_normal.jpg")
                 }),
-            cobble_stone_plane: new Material(new Shadow_Textured_Phong_Shader(1),
+            cobble_stone_plane: new Material(new Shadow_Textured_Phong_NM_Shader(1),
                 {
-                    ambient: 0.3, diffusivity: 0.3, specularity: 0.3, color: hex_color("#964B00"),
+                    ambient: 0.3, diffusivity: 0.4, specularity: 0.6,
+                    color: hex_color("#B7B09C"),
                     color_texture: new Texture("./assets/brickwall.jpg"),
-                    //normal: new Texture("./assets/brickwall_normal.jpg")
+                    normal_map: new Texture("./assets/brickwall_normal.jpg"),
                     light_depth_texture: null
                 }),
             perlin_floor: new Material(new Shadow_Textured_Phong_Shader(1),
                 {
                     ambient: 0.3, diffusivity: 0.5, specularity: 0.4,
-                    color: hex_color("#ffff0f"),
+                    color: hex_color("#e0e0e0"),
                     color_texture: new Texture("./assets/perlin_stones/ground.png"),
                     light_depth_texture: null
                 }),
@@ -742,10 +745,10 @@ export class Labyrinth extends Base_Scene {
         this.sun_light_color = hex_color("#ffffff");
         this.light_view_target = vec4(10, 0, -10, 1);
         this.light_field_of_view = 170 * Math.PI / 180;
-        program_state.lights = [new Light(this.global_sun_position, this.sun_light_color, 10000)];
-        this.light_view_target = vec4(10, 0, -10, 1);
-        this.light_field_of_view = 170 * Math.PI / 180;
-        program_state.lights = [new Light(this.global_sun_position, this.sun_light_color, 10000)]
+        program_state.lights = [new Light(this.global_sun_position, this.sun_light_color, 100000)];
+        //this.light_view_target = vec4(10, 0, -10, 1);
+        //this.light_field_of_view = 170 * Math.PI / 180;
+        //program_state.lights = [new Light(this.global_sun_position, this.sun_light_color, 10000)]
         const light_view_mat = Mat4.look_at(
             vec3(this.global_sun_position[0], this.global_sun_position[1], this.global_sun_position[2]),
             vec3(this.light_view_target[0], this.light_view_target[1], this.light_view_target[2]),
