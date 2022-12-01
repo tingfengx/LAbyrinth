@@ -113,6 +113,9 @@ class Base_Scene extends Scene {
             // since camera space is all in inverse space. We have to translate first, then rotate.
             .times(Mat4.rotation(Math.PI / 2, 0, 1, 0))
             .times(Mat4.translation(-2, -0.8, 2));
+
+        this.box_transform = Mat4.translation(34, 0, -10, 0)
+            .times(Mat4.scale(0.5, 0.5, 0.5));
     }
 
     display(context, program_state) {
@@ -734,7 +737,7 @@ export class Labyrinth extends Base_Scene {
     transform_treasure_box(context, program_state, model_transform) {
         //  This should make changes to the model_transform matrix, and return the newest model_transform.
         const t = program_state.animation_time / 1000;
-        const max_degree = .05 * Math.PI;
+        const max_degree = .5 * Math.PI;
         const a = max_degree / 2;
         const b = max_degree / 2;
         const w = 2;
@@ -809,16 +812,7 @@ export class Labyrinth extends Base_Scene {
         //this.draw_floor(context, program_state);
         this.draw_person(context, program_state);
 
-        // let box_transform = Mat4.translation(34, 0, -8, 0)
-        // .times(Mat4.scale(0.5, 0.5, 0.5));
-
-        let box_transform = Mat4.translation(5, 0, -2, 0)
-            .times(Mat4.scale(0.5, 0.5, 0.5));
-
-        for (let i = 0; i < 4; i++) {
-            box_transform = this.transform_treasure_box(context, program_state, box_transform);
-        }
-
+        let box_transform = this.transform_treasure_box(context, program_state, this.box_transform);
         this.shapes.treasure_box.draw(context, program_state, box_transform, this.materials.treasure_box);
     }
 }
