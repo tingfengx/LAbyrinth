@@ -1,5 +1,13 @@
 import {defs, tiny} from './examples/common.js';
+import {
+    Buffered_Texture,
+    Color_Phong_Shader,
+    Depth_Texture_Shader_2D,
+    LIGHT_DEPTH_TEX_SIZE, Shadow_Textured_Phong_NM_Shader,
+    Shadow_Textured_Phong_Shader
+} from "./examples/shadow_shaders.js";
 
+//import {Shape_From_File} from './examples/obj-file-demo.js';
 const {
     Vector, Vector3, vec, vec3, vec4, color, hex_color, Shader, Matrix, Mat4, Light, Shape, Material, Scene, Texture,
 } = tiny;
@@ -10,6 +18,7 @@ const {
     Square_Normal,
     Square,
     Axis_Arrows,
+    Subdivision_Sphere,
     Textured_Phong,
     Fake_Bump_Map,
     Phong_Shader,
@@ -34,6 +43,7 @@ class Base_Scene extends Scene {
             'torch_wood': new Cube(),
             'torch_fire': new defs.Subdivision_Sphere(3),
             'person': new Cube(),
+            'sphere': new Subdivision_Sphere(4)
         };
 
         // *** Materials
@@ -46,10 +56,19 @@ class Base_Scene extends Scene {
                     texture: new Texture("./assets/brickwall.jpg"),
                     normal: new Texture("./assets/brickwall_normal.jpg")
                 }),
-            perlin_floor: new Material(new Textured_Phong(),
+            cobble_stone_plane: new Material(new Shadow_Textured_Phong_NM_Shader(1),
                 {
-                    ambient: .5, diffusivity: 0.3, specularity: 0.3,
-                    texture: new Texture("./assets/perlin_stones/ground.png")
+                    ambient: 0.4, diffusivity: 0.3, specularity: 0.5, color: hex_color("#964B00"),
+                    color_texture: new Texture("./assets/brickwall.jpg"),
+                    normal: new Texture("./assets/brickwall_normal.jpg"),
+                    light_depth_texture: null
+                }),
+            perlin_floor: new Material(new Shadow_Textured_Phong_Shader(1),
+                {
+                    ambient: 0.3, diffusivity: 0.2, specularity: 0.4,
+                    color: hex_color("#aaaaaa"),
+                    color_texture: new Texture("./assets/perlin_stones/ground.png"),
+                    light_depth_texture: null
                 }),
             wood: new Material(new Textured_Phong(),
                 {
@@ -64,6 +83,14 @@ class Base_Scene extends Scene {
                 {
                     ambient: 1, diffusivity: 0.5, color: hex_color("#992828")
                 }),
+            pure: new Material(new Color_Phong_Shader(), {}),
+            light_src: new Material(new Phong_Shader(), {
+                color: color(1, 1, 1, 1), ambient: 1, diffusivity: 0, specularity: 0
+            }),
+            depth_tex: new Material(new Depth_Texture_Shader_2D(), {
+                color: color(0, 0, .0, 1),
+                ambient: 1, diffusivity: 0, specularity: 0, texture: null
+            })
         };
 
         // vector direction in homo
@@ -95,8 +122,8 @@ class Base_Scene extends Scene {
             Math.PI / 2.5, context.width / context.height, 0.01, 100);
 
         // *** Lights: *** Values of vector or point lights.
-        const global_sun_position = vec4(20, 10, 50, 1);
-        program_state.lights = [new Light(global_sun_position, hex_color("#ffffff"), 10 ** 10)];
+        //const global_sun_position = vec4(20, 10, 50, 1);
+        //program_state.lights = [new Light(global_sun_position, hex_color("#ffffff"), 10 ** 10)];
     }
 }
 
@@ -111,6 +138,7 @@ export class Labyrinth extends Base_Scene {
         super();
         this.get_coords();
         this.map_plane = [];
+        this.init_ok = false;
         const offsets = this.get_offsets(1)
         let res = [];
         // discard y components, recover projected position on 2d plane
@@ -144,7 +172,7 @@ export class Labyrinth extends Base_Scene {
         let res = [];
         for (let offset of offsets) {
             res.push(
-                vec(person_location[0] + offset[0], - person_location[2] - offset[1])
+                vec(person_location[0] + offset[0], -person_location[2] - offset[1])
             )
         }
         return res
@@ -428,6 +456,8 @@ export class Labyrinth extends Base_Scene {
     }
 
     make_control_panel() {
+        this.control_panel.innerHTML += "For the best experience, please don't press multiple keys at the same time.<br>";
+
         this.key_triggered_button("Rotate Left", ["a"], () => {
             this.look_at_direction = Mat4.rotation(Math.PI / 16, 0, 1, 0)
                 .times(this.look_at_direction);
@@ -505,7 +535,7 @@ export class Labyrinth extends Base_Scene {
             let ok = true;
             const new_person_location_tips = this.get_person_box_tips(new_person_location);
 
-            for (let i = 0; i < this.map_plane.length; i ++) {
+            for (let i = 0; i < this.map_plane.length; i++) {
                 const cur_square = this.map_plane[i];
                 if (this.box_collide_2d(
                     cur_square,
@@ -525,19 +555,40 @@ export class Labyrinth extends Base_Scene {
 
         this.key_triggered_button("Back", ["s"], () => {
             const scaled_look_at_direction = this.look_at_direction.times(0.12)
-            this.person_transformation =
+            const new_person_transformation =
                 Mat4.translation(
                     -1 * scaled_look_at_direction[0],
                     -1 * scaled_look_at_direction[1],
                     -1 * scaled_look_at_direction[2]
                 ).times(this.person_transformation);
-            this.camera_transformation = this.camera_transformation.times(Mat4.translation(
+            const new_camera_transformation = this.camera_transformation.times(Mat4.translation(
                 scaled_look_at_direction[0],
                 scaled_look_at_direction[1],
                 scaled_look_at_direction[2]
             ));
-            this.person_location = this.person_location.plus(scaled_look_at_direction);
+            // person moves backward
+            const new_person_location = this.person_location.plus(scaled_look_at_direction.times(-1));
+            let ok = true;
+            const new_person_location_tips = this.get_person_box_tips(new_person_location);
+
+            for (let i = 0; i < this.map_plane.length; i++) {
+                const cur_square = this.map_plane[i];
+                if (this.box_collide_2d(
+                    cur_square,
+                    new_person_location_tips
+                )) {
+                    ok = false;
+                    break;
+                }
+            }
+
+            if (ok) {
+                this.person_transformation = new_person_transformation;
+                this.camera_transformation = new_camera_transformation;
+                this.person_location = new_person_location;
+            }
         });
+
     }
 
     draw_box(context, program_state, model_transform, x, y, z) {
@@ -545,12 +596,12 @@ export class Labyrinth extends Base_Scene {
         return model_transform;
     }
 
-    draw_floor(context, program_state) {
+    draw_floor(context, program_state, shadow_pass) {
         const floor_transformation = Mat4.identity()
             .times(Mat4.translation(20, -1, -20))
-            .times(Mat4.rotation(Math.PI / 2., 1, 0, 0))
-            .times(Mat4.scale(20, 20, 0));
-        this.shapes.floor.draw(context, program_state, floor_transformation, this.materials.perlin_floor);
+            //.times(Mat4.rotation(Math.PI / 2., 1, 0, 0))
+            .times(Mat4.scale(20, 0.2, 20));
+        this.shapes.cube.draw(context, program_state, floor_transformation, shadow_pass ? this.materials.perlin_floor : this.materials.pure);
     }
 
     draw_torch(context, program_state, x, y, z) {
@@ -580,20 +631,156 @@ export class Labyrinth extends Base_Scene {
         this.shapes.person.draw(context, program_state, this.person_transformation, this.materials.person);
     }
 
+    texture_buffer_init(gl) {
+        // Depth Texture
+        this.lightDepthTexture = gl.createTexture();
+        // Bind it to TinyGraphics
+        this.light_depth_texture = new Buffered_Texture(this.lightDepthTexture);
+        this.materials.cobble_stone_plane.light_depth_texture = this.light_depth_texture;
+        this.materials.perlin_floor.light_depth_texture = this.light_depth_texture;
+
+        this.lightDepthTextureSize = LIGHT_DEPTH_TEX_SIZE;
+        gl.bindTexture(gl.TEXTURE_2D, this.lightDepthTexture);
+        gl.texImage2D(
+            gl.TEXTURE_2D,      // target
+            0,                  // mip level
+            gl.DEPTH_COMPONENT, // internal format
+            this.lightDepthTextureSize,   // width
+            this.lightDepthTextureSize,   // height
+            0,                  // border
+            gl.DEPTH_COMPONENT, // format
+            gl.UNSIGNED_INT,    // type
+            null);              // data
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+
+        // Depth Texture Buffer
+        this.lightDepthFramebuffer = gl.createFramebuffer();
+        gl.bindFramebuffer(gl.FRAMEBUFFER, this.lightDepthFramebuffer);
+        gl.framebufferTexture2D(
+            gl.FRAMEBUFFER,       // target
+            gl.DEPTH_ATTACHMENT,  // attachment point
+            gl.TEXTURE_2D,        // texture target
+            this.lightDepthTexture,         // texture
+            0);                   // mip level
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+
+        // create a color texture of the same size as the depth texture
+        // see article why this is needed_
+        this.unusedTexture = gl.createTexture();
+        gl.bindTexture(gl.TEXTURE_2D, this.unusedTexture);
+        gl.texImage2D(
+            gl.TEXTURE_2D,
+            0,
+            gl.RGBA,
+            this.lightDepthTextureSize,
+            this.lightDepthTextureSize,
+            0,
+            gl.RGBA,
+            gl.UNSIGNED_BYTE,
+            null,
+        );
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+        // attach it to the framebuffer
+        gl.framebufferTexture2D(
+            gl.FRAMEBUFFER,        // target
+            gl.COLOR_ATTACHMENT0,  // attachment point
+            gl.TEXTURE_2D,         // texture target
+            this.unusedTexture,         // texture
+            0);                    // mip level
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    }
+
+
+    render_scene(context, program_state, shadow_pass, draw_light_source = false, draw_shadow = false) {
+        let light_position = this.global_sun_position;
+        let light_color = this.sun_light_color;
+        const t = program_state.animation_time;
+        program_state.draw_shadow = draw_shadow;
+        let box_model_transform = Mat4.identity();
+
+        if (draw_light_source && shadow_pass) {
+            this.shapes.sphere.draw(context, program_state,
+                Mat4.translation(light_position[0], light_position[1], light_position[2]).times(Mat4.scale(.5, .5, .5)),
+                this.materials.light_src.override({color: light_color}));
+        }
+
+        for (let i = 0; i < this.box_coord.length; i++) {
+            const x = original_box_size * this.box_coord[i][0];
+            const y = original_box_size * this.box_coord[i][1];
+            const z = -original_box_size * this.box_coord[i][2];
+            box_model_transform = this.draw_box(context, program_state, box_model_transform, x, y, z);
+            //if (i % 3 === 0) this.draw_torch(context, program_state, x + 1.0, y + 0.3, z);
+            this.shapes.cube.draw(context, program_state, box_model_transform, shadow_pass ? this.materials.cobble_stone_plane : this.materials.pure);
+
+        }
+        this.draw_floor(context, program_state, shadow_pass);
+
+    }
+
     display(context, program_state) {
         super.display(context, program_state);
-        let model_transform = Mat4.identity();
 
+        const t = program_state.animation_time;
+        const gl = context.context;
+        if (!this.init_ok) {
+            const ext = gl.getExtension('WEBGL_depth_texture');
+            if (!ext) {
+                return alert('need WEBGL_depth_texture');  // eslint-disable-line
+            }
+            this.texture_buffer_init(gl);
+
+            this.init_ok = true;
+        }
+
+        this.global_sun_position = vec4(10, 5, 0, 1);
+        this.sun_light_color = hex_color("#ffffff");
+        this.light_view_target = vec4(10, 0, -10, 1);
+        this.light_field_of_view = 170 * Math.PI / 180;
+        program_state.lights = [new Light(this.global_sun_position, this.sun_light_color, 10000)];
+        this.light_view_target = vec4(10, 0, -10, 1);
+        this.light_field_of_view = 170 * Math.PI / 180;
+        program_state.lights = [new Light(this.global_sun_position, this.sun_light_color, 10000)]
+        const light_view_mat = Mat4.look_at(
+            vec3(this.global_sun_position[0], this.global_sun_position[1], this.global_sun_position[2]),
+            vec3(this.light_view_target[0], this.light_view_target[1], this.light_view_target[2]),
+            vec3(0, 1, 0), // assume the light to target will have a up dir of +y, maybe need to change according to your case
+        );
+        const light_proj_mat = Mat4.perspective(this.light_field_of_view, 1, 0.5, 500);
+
+        gl.bindFramebuffer(gl.FRAMEBUFFER, this.lightDepthFramebuffer);
+        gl.viewport(0, 0, this.lightDepthTextureSize, this.lightDepthTextureSize);
+        gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+
+        program_state.light_view_mat = light_view_mat;
+        program_state.light_proj_mat = light_proj_mat;
+        program_state.light_tex_mat = light_proj_mat;
+        program_state.view_mat = light_view_mat;
+        program_state.projection_transform = light_proj_mat;
+        this.render_scene(context, program_state, false, false, false);
+
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+        gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
+        program_state.view_mat = program_state.camera_inverse;
+        program_state.projection_transform = Mat4.perspective(Math.PI / 2.5, context.width / context.height, 0.01, 100);
+        this.render_scene(context, program_state, true, true, true);
+
+        let model_transform = Mat4.identity();
         for (let i = 0; i < this.box_coord.length; i++) {
             const x = original_box_size * this.box_coord[i][0];
             const y = original_box_size * this.box_coord[i][1];
             const z = -original_box_size * this.box_coord[i][2];
             model_transform = this.draw_box(context, program_state, model_transform, x, y, z);
             if (i % 3 === 0) this.draw_torch(context, program_state, x + 1.0, y + 0.3, z);
-            this.shapes.cube.draw(context, program_state, model_transform, this.materials.cobble_stone);
+            //this.shapes.cube.draw(context, program_state, model_transform, this.materials.cobble_stone);
         }
 
-        this.draw_floor(context, program_state);
+        //this.draw_floor(context, program_state);
         this.draw_person(context, program_state);
     }
 }
