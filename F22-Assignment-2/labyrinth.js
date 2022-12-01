@@ -3,7 +3,7 @@ import {
     Buffered_Texture,
     Color_Phong_Shader,
     Depth_Texture_Shader_2D,
-    LIGHT_DEPTH_TEX_SIZE,
+    LIGHT_DEPTH_TEX_SIZE, Shadow_Textured_Phong_NM_Shader,
     Shadow_Textured_Phong_Shader
 } from "./examples/shadow_shaders.js";
 
@@ -56,17 +56,17 @@ class Base_Scene extends Scene {
                     texture: new Texture("./assets/brickwall.jpg"),
                     normal: new Texture("./assets/brickwall_normal.jpg")
                 }),
-            cobble_stone_plane: new Material(new Shadow_Textured_Phong_Shader(1),
+            cobble_stone_plane: new Material(new Shadow_Textured_Phong_NM_Shader(1),
                 {
-                    ambient: 0.3, diffusivity: 0.3, specularity: 0.3, color: hex_color("#964B00"),
+                    ambient: 0.4, diffusivity: 0.3, specularity: 0.5, color: hex_color("#964B00"),
                     color_texture: new Texture("./assets/brickwall.jpg"),
-                    //normal: new Texture("./assets/brickwall_normal.jpg")
+                    normal: new Texture("./assets/brickwall_normal.jpg"),
                     light_depth_texture: null
                 }),
             perlin_floor: new Material(new Shadow_Textured_Phong_Shader(1),
                 {
-                    ambient: 0.3, diffusivity: 0.5, specularity: 0.4,
-                    color: hex_color("#ffff0f"),
+                    ambient: 0.3, diffusivity: 0.2, specularity: 0.4,
+                    color: hex_color("#aaaaaa"),
                     color_texture: new Texture("./assets/perlin_stones/ground.png"),
                     light_depth_texture: null
                 }),
