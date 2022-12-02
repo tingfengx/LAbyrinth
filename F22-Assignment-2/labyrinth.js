@@ -599,7 +599,7 @@ export class Labyrinth extends Base_Scene {
         program_state.lights = [new Light(this.global_sun_position, this.sun_light_color, 10000)];
         this.light_view_target = vec4(10, 0, -10, 1);
         this.light_field_of_view = 170 * Math.PI / 180;
-        program_state.lights = [new Light(this.global_sun_position, this.sun_light_color, Math.sin(t/4500) > 0?10000:0)]
+        program_state.lights = [new Light(this.global_sun_position, this.sun_light_color, (Math.sin(t/4500) > 0 || this.still_lighting)?10000:0)]
         const light_view_mat = Mat4.look_at(
             vec3(this.global_sun_position[0], this.global_sun_position[1], this.global_sun_position[2]),
             vec3(this.light_view_target[0], this.light_view_target[1], this.light_view_target[2]),
