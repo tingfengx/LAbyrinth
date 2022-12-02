@@ -59,6 +59,11 @@ class Base_Scene extends Scene {
                     texture: new Texture("./assets/brickwall.jpg"),
                     normal: new Texture("./assets/brickwall_normal.jpg")
                 }),
+            cobble_flat: new Material(new Textured_Phong(),
+                {
+                    ambient: 0.2, diffusivity: 0.3, specularity: 0.3, color: hex_color("#964B00"),
+                    texture: new Texture("./assets/brickwall.jpg")
+                }),
             cobble_stone_plane: new Material(new Shadow_Textured_Phong_NM_Shader(1),
                 {
                     ambient: 0.4, diffusivity: 0.3, specularity: 0.5, color: hex_color("#964B00"),
@@ -587,11 +592,10 @@ export class Labyrinth extends Base_Scene {
 
             this.init_ok = true;
         }
-        if(this.still_lighting){
+        if (this.still_lighting) {
             this.global_sun_position = vec4(10, 5, 0, 1);
-        }
-        else{
-            this.global_sun_position = vec4(15 - 5 * Math.cos(t/4500), 5 * Math.sin(t/4500), 2, 1);
+        } else {
+            this.global_sun_position = vec4(15 - 5 * Math.cos(t / 4500), 5 * Math.sin(t / 4500), 2, 1);
         }
         this.sun_light_color = hex_color("#ffffff");
         this.light_view_target = vec4(20, 0, -20, 1);
@@ -599,7 +603,7 @@ export class Labyrinth extends Base_Scene {
         program_state.lights = [new Light(this.global_sun_position, this.sun_light_color, 10000)];
         this.light_view_target = vec4(10, 0, -10, 1);
         this.light_field_of_view = 170 * Math.PI / 180;
-        program_state.lights = [new Light(this.global_sun_position, this.sun_light_color, (Math.sin(t/4500) > 0 || this.still_lighting)?10000:0)]
+        program_state.lights = [new Light(this.global_sun_position, this.sun_light_color, (Math.sin(t / 4500) > 0 || this.still_lighting) ? 10000 : 0)]
         const light_view_mat = Mat4.look_at(
             vec3(this.global_sun_position[0], this.global_sun_position[1], this.global_sun_position[2]),
             vec3(this.light_view_target[0], this.light_view_target[1], this.light_view_target[2]),
@@ -631,7 +635,7 @@ export class Labyrinth extends Base_Scene {
             const z = -original_box_size * this.box_coord[i][2];
             model_transform = this.draw_box(context, program_state, model_transform, x, y, z);
             if (i % 3 === 0) this.draw_torch(context, program_state, x + 1.0, y + 0.3, z);
-            this.shapes.cube.draw(context, program_state, model_transform, this.materials.cobble_stone);
+            // this.shapes.cube.draw(context, program_state, model_transform, this.materials.cobble_stone);
         }
 
         //this.draw_floor(context, program_state);
