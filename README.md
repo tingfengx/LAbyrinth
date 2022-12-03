@@ -3,7 +3,7 @@
 > Team: Tingfeng Xia, Yu Zuo, Xiaxuan Gao, & Ruoyu He
 
 ## Demo
-See our demo live at https://tingfengx.com/LAbyrinth/LAbyrinth/index.html
+See our demo live at [https://tingfengx.com/LAbyrinth/LAbyrinth/index.html](https://tingfengx.com/LAbyrinth/LAbyrinth/index.html)
 
 ## Slide Deck
 Slide deck available here: 
