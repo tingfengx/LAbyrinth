@@ -1,5 +1,0 @@
-#  LAbyrinth
-
-### Basic Info:
-
-
